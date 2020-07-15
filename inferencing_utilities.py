@@ -117,7 +117,7 @@ class instance_seg_inferencing():
                                       config=self.config)
             
         ## load pre-trained weights
-        weights_name = os.path.join(self.rootdir, 'mask_rcnn_leaves_0060.h5')
+        weights_name = os.path.join(self.rootdir, 'model.h5')
         print("Loading weights ", weights_name)
         self.model.load_weights(weights_name, by_name=True)
 
