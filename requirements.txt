@@ -1,4 +1,4 @@
 plantcv
 opencv-python<4
 numpy==1.15.1
--e git+https://github.com/matterport/Mask_RCNN.git
+git+https://github.com/matterport/Mask_RCNN.git
