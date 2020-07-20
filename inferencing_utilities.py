@@ -42,12 +42,10 @@ from mrcnn import utils
 from mrcnn import model as modellib 
 from mrcnn import visualize 
 
-# # Import Leaf config
-# LEAF_DIR = os.path.join(ROOT_DIR, 'Leaf') #'/shares/mgehan_share/hsheng/projects/maskRCNN/InstanceSegmentation/Leaf'
-# sys.path.append(LEAF_DIR)
-# import Leaf
+# Direcotry of dataset used in training. Modify it according to your path 
+dataset_dir ='/mnt/efs/data/synthetic_arabidopsis_LSC'
+num_images, Image_IDs_train, Image_IDs_val, Image_IDs_test = generate_IDs(dataset_dir)
 
-# %% Set Hyperparameter for Training 
 
 def generate_IDs(dataset_dir):
     '''Generate the list to load. Because the dataset is all in one directory. 
@@ -80,7 +78,6 @@ def generate_IDs(dataset_dir):
     return num_images, Image_IDs_train, Image_IDs_val, Image_IDs_test
 
 
-
 def _get_ax(rows=1, cols=1, size=16):   #???
     """Return a Matplotlib Axes array to be used in
     all visualizations in the notebook. Provide a
@@ -91,6 +88,7 @@ def _get_ax(rows=1, cols=1, size=16):   #???
     fig, ax = plt.subplots(rows, cols, figsize=(size*cols, size*rows))
     fig.tight_layout()
     return ax
+
 def _random_colors(N, bright=True):
     """
     Generate random colors.
@@ -103,12 +101,8 @@ def _random_colors(N, bright=True):
     random.shuffle(colors)
     return colors
 
-# Direcotry of dataset. Modify it according to your path 
-dataset_dir ='/mnt/efs/data/synthetic_arabidopsis_LSC'
-num_images, Image_IDs_train, Image_IDs_val, Image_IDs_test = generate_IDs(dataset_dir)
 
-
-
+## Set Hyperparameter for Training 
 class LeavesConfig(Config):
     '''Configuration for training on the Synthetic Arabidopsis dataset. 
     Derives from the base Config class and overrides values specific to 
@@ -182,7 +176,7 @@ class LeavesConfig(Config):
     DETECTION_MAX_INSTANCES = 100  # ?? this number can be much less
 
 
-# %% Set Hyperparameter for Testing 
+##  Set Hyperparameter for Testing 
     
 class LeavesInferenceConfig(LeavesConfig):
     # Set batch size to 1 to run and inference one image at a time 
@@ -216,21 +210,15 @@ class instance_seg_inferencing():
             os.makedirs(self.segmentation_dir)
 
         self.rootdir = rootdir
-        # leaf_dir = os.path.join(self.rootdir, 'Leaf')
-        # sys.path.append(leaf_dir)
-        # import Leaf
 
         self.pattern_datetime = pattern_datetime
 
         self.suffix = suffix
 
-#         self.id_plant = id_plant
-
         self.class_names = class_names
 
     def get_configure(self):
         if not os.path.exists(os.path.join(self.savedir, 'parameters.pkl')):
-#             self.config = Leaf.LeavesInferenceConfig()
             self.config = LeavesInferenceConfig()
             parameters = dict()
             parameters['mrcnn_config'] = self.config
