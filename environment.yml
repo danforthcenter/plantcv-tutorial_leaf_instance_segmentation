@@ -1,6 +1,10 @@
 # run: conda env create --file environment.yml
 name: mrcnn
 dependencies:
+  - argparse
+  - cv2
+  - python-dateutil
+  - setuptools
   - Pillow
   - cython
   - matplotlib
