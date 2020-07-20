@@ -37,11 +37,49 @@ LIB_DIR  = '/shares/mgehan_share/hsheng/Mask_RCNN'
 # from mrcnn import utils
 import mrcnn.model as modellib
 from mrcnn import visualize
+from mrcnn.config import Config 
+from mrcnn import utils 
+from mrcnn import model as modellib 
+from mrcnn import visualize 
 
-# Import Leaf config
-LEAF_DIR = os.path.join(ROOT_DIR, 'Leaf') #'/shares/mgehan_share/hsheng/projects/maskRCNN/InstanceSegmentation/Leaf'
-sys.path.append(LEAF_DIR)
-import Leaf
+# # Import Leaf config
+# LEAF_DIR = os.path.join(ROOT_DIR, 'Leaf') #'/shares/mgehan_share/hsheng/projects/maskRCNN/InstanceSegmentation/Leaf'
+# sys.path.append(LEAF_DIR)
+# import Leaf
+
+# %% Set Hyperparameter for Training 
+
+def generate_IDs(dataset_dir):
+    '''Generate the list to load. Because the dataset is all in one directory. 
+    We assume the filename of image is like 'plant00000_rgb.png' because I used 
+    x[0:10] in line 31. You can modify according to your filename.  We need to do 
+    train/validation/test split with ratio of 6:2:2. 
+    Input: 
+    dataset_dir: the path where stores the dataset 
+    Output: 
+    num_images: the total number of images in the dataset_dir 
+    Image_IDs_train: A list with length of int(0.6 * num_images). The element is 
+    a str (like plant00003). 
+    Image_IDs_val: A list with length of int(0.2 * num_images). The element is 
+    a str (like plant00003)
+    Image_IDs_test: A list with length of int(0.2 * num_images). The element is 
+    a str (like plant00003)
+    
+    '''
+    AllImage_IDs = []
+    for (root, dirs, filenames) in os.walk(dataset_dir):
+        for x in filenames:
+            if x.endswith('rgb.png'):
+                AllImage_IDs.append(x[0:10])
+    num_images = len(AllImage_IDs)
+    Image_IDs_train = random.sample(AllImage_IDs, int(0.8 * num_images))
+    Image_IDs_test = list(set(AllImage_IDs) - set(Image_IDs_train))
+    Image_IDs_val = random.sample(Image_IDs_train, int(0.2 * num_images))
+    Image_IDs_train = list(set(Image_IDs_train) - set(Image_IDs_val))
+    
+    return num_images, Image_IDs_train, Image_IDs_val, Image_IDs_test
+
+
 
 def _get_ax(rows=1, cols=1, size=16):   #???
     """Return a Matplotlib Axes array to be used in
@@ -64,6 +102,98 @@ def _random_colors(N, bright=True):
     colors = list(map(lambda c: colorsys.hsv_to_rgb(*c), hsv))
     random.shuffle(colors)
     return colors
+
+# Direcotry of dataset. Modify it according to your path 
+dataset_dir ='/mnt/efs/data/synthetic_arabidopsis_LSC'
+num_images, Image_IDs_train, Image_IDs_val, Image_IDs_test = generate_IDs(dataset_dir)
+
+
+
+class LeavesConfig(Config):
+    '''Configuration for training on the Synthetic Arabidopsis dataset. 
+    Derives from the base Config class and overrides values specific to 
+    the leave dataset 
+    '''
+    
+    # Give the configuration a recognizable name  
+    NAME = 'leaves'
+    
+    # Number of classes(including background)
+    NUM_CLASSES = 1 + 1 # background + leaves 
+    
+    # Train on 1 GPU AND 5 images per GPU. We can put multiples images on each 
+    # GPU because the images are samll. Batch size is 5 (GPU * images/GPU)
+    GPU_COUNT = 1 
+    IMAGES_PER_GPU = 4  # Modify according to your GPU memory. We trained this on AWS P2
+    Batch_size = GPU_COUNT * IMAGES_PER_GPU
+    
+    # Number of training and validation steps per epoch 
+    STEPS_PER_EPOCH = (num_images * 0.6)// Batch_size  # define dataset_IDS
+    VALIDATION_STEPS = max(0, (num_images * 0.2) // Batch_size) 
+    
+    # Don't exclude based on confidence. ##??
+    DETECTION_MIN_CONFIDENCE = 0.8
+    DETECTION_NMS_THRESHOLD = 0.48
+    
+    # Backbone network architecture 
+    # Supported values are: resnet50, resnet101
+    BACKBONE = 'resnet50'
+    
+    # Input image resizing 
+    # Random crops of size 512x512 
+    IMAGE_RESIZE_MODE = 'crop'
+    IMAGE_MIN_DIM = 512
+    IMAGE_MAX_DIM = 512
+    IMAGE_MIN_SCALE = 2.0 
+    
+    # Length of square anchor side in pixels.
+    RPN_ANCHOR_SCALES = (8, 16, 32, 64, 128)
+
+    # ROIs kept after non-maximum supression (training and inference)  
+    POST_NMS_ROIS_TRAINING = 2000
+    POST_NMS_ROIS_INFERENCE = 1000
+
+    # Non-max suppression threshold to filter RPN proposals.
+    # You can increase this during training to generate more propsals.
+    RPN_NMS_THRESHOLD = 0.9    
+
+    # How many anchors per image to use for RPN training
+    RPN_TRAIN_ANCHORS_PER_IMAGE = 256  
+
+    # Image mean (RGB)
+    MEAN_PIXEL = np.array([123.7, 116.8, 103.9])  
+
+    # If enabled, resizes instance masks to a smaller size to reduce
+    # memory load. Recommended when using high-resolution images.
+    USE_MINI_MASK = True  
+    MINI_MASK_SHAPE = (56, 56)  # (height, width) of the mini-mask
+
+    # Number of ROIs per image to feed to classifier/mask heads
+    # The Mask RCNN paper uses 512 but often the RPN doesn't generate
+    # enough positive proposals to fill this and keep a positive:negative
+    # ratio of 1:3. You can increase the number of proposals by adjusting
+    # the RPN NMS threshold.
+    TRAIN_ROIS_PER_IMAGE = 150
+
+    # Maximum number of ground truth instances to use in one image
+    MAX_GT_INSTANCES = 50   ## ?? you can adjust this to smaller number
+
+    # Max number of final detections per image
+    DETECTION_MAX_INSTANCES = 100  # ?? this number can be much less
+
+
+# %% Set Hyperparameter for Testing 
+    
+class LeavesInferenceConfig(LeavesConfig):
+    # Set batch size to 1 to run and inference one image at a time 
+    GPU_COUNT = 1 
+    IMAGES_PER_GPU =1 
+    # Don't resize image for inferencing 
+    IMAGE_RESIZE_MODE = 'pad64'
+    # Non-max suppression threhold to filter RPN proposals 
+    # You can increase this during training to generate more proposals
+    RPN_NMS_THRESHOLD = 0.9 
+
 
 
 class instance_seg_inferencing():
@@ -100,7 +230,8 @@ class instance_seg_inferencing():
 
     def get_configure(self):
         if not os.path.exists(os.path.join(self.savedir, 'parameters.pkl')):
-            self.config = Leaf.LeavesInferenceConfig()
+#             self.config = Leaf.LeavesInferenceConfig()
+            self.config = LeavesInferenceConfig()
             parameters = dict()
             parameters['mrcnn_config'] = self.config
             parameters['data']         = self.imagedir
@@ -183,5 +314,4 @@ class instance_seg_inferencing():
             self.segmentation_inferencing(filename)
             count += 1
             print('{} images done. The last one is {}'.format(count, filename))
-
 
