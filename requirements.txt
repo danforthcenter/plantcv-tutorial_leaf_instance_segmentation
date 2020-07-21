@@ -1,6 +1,7 @@
 plantcv
 opencv-python<4
 numpy==1.15.1
+tensorflow==1.13.1
 git+https://github.com/matterport/Mask_RCNN.git
 scipy
 Pillow
