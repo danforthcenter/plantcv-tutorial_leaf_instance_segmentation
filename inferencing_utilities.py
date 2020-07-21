@@ -42,10 +42,6 @@ from mrcnn import utils
 from mrcnn import model as modellib 
 from mrcnn import visualize 
 
-# Direcotry of dataset used in training. Modify it according to your path 
-dataset_dir ='/mnt/efs/data/synthetic_arabidopsis_LSC'
-num_images, Image_IDs_train, Image_IDs_val, Image_IDs_test = generate_IDs(dataset_dir)
-
 
 def generate_IDs(dataset_dir):
     '''Generate the list to load. Because the dataset is all in one directory. 
@@ -100,7 +96,10 @@ def _random_colors(N, bright=True):
     colors = list(map(lambda c: colorsys.hsv_to_rgb(*c), hsv))
     random.shuffle(colors)
     return colors
-
+    
+# Direcotry of dataset used in training. Modify it according to your path 
+dataset_dir ='/mnt/efs/data/synthetic_arabidopsis_LSC'
+num_images, Image_IDs_train, Image_IDs_val, Image_IDs_test = generate_IDs(dataset_dir)
 
 ## Set Hyperparameter for Training 
 class LeavesConfig(Config):
