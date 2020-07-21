@@ -1,0 +1,11 @@
+# run: conda env create --file environment.yml
+name: mrcnn
+dependencies:
+  - plantcv
+  - opencv<4, >=3.4
+  - numpy==1.15.1
+  - git+https://github.com/matterport/Mask_RCNN.git
+channels:
+  - defaults
+  - conda-forge
+  - bioconda
