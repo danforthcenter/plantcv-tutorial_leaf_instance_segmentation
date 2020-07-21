@@ -6,7 +6,6 @@ scipy
 Pillow
 matplotlib
 scikit-image
-tensorflow
 keras
 h5py
 imgaug
