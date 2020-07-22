@@ -299,6 +299,7 @@ class instance_seg_inferencing():
         count = 0
         for filename in self.list_f:
             self.segmentation_inferencing(filename)
+            plt.close('all')
             count += 1
             print('{} images done. The last one is {}'.format(count, filename))
 
