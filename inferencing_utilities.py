@@ -175,8 +175,7 @@ class LeavesConfig(Config):
     DETECTION_MAX_INSTANCES = 100  # ?? this number can be much less
 
 
-##  Set Hyperparameter for Testing 
-    
+##  Set Hyperparameter for Testing     
 class LeavesInferenceConfig(LeavesConfig):
     # Set batch size to 1 to run and inference one image at a time 
     GPU_COUNT = 1 
@@ -187,10 +186,7 @@ class LeavesInferenceConfig(LeavesConfig):
     # You can increase this during training to generate more proposals
     RPN_NMS_THRESHOLD = 0.9 
 
-
-
 class instance_seg_inferencing():
-#     def __init__(self, imagedir, savedir, rootdir, pattern_datetime, suffix, id_plant, class_names=['BG', 'Leaf']):
     def __init__(self, imagedir, savedir, rootdir, pattern_datetime, suffix, class_names=['BG', 'Leaf']):
         
         # Directory of original images 
@@ -249,9 +245,6 @@ class instance_seg_inferencing():
 
     def get_file_list(self):
     ## Get the list of all files
-        # suffix = '_crop-img{}.jpg'.format(id_plant)
-        # suffix = '_crop.jpg'
-
         self.list_f = [f for f in os.listdir(self.imagedir) if f.endswith(self.suffix)]
         self.list_f.sort()
         print('There are {} images.'.format(len(self.list_f)))
@@ -291,7 +284,6 @@ class instance_seg_inferencing():
             plt.savefig(os.path.join(F_DIR, 'leaf_{}.png'.format(idx)))
 
     def inferencing_random_sample(self):
-        # file_names = next(os.walk(self.imagedir))[2]
         file_name  = random.choice(self.list_f)
         self.segmentation_inferencing(file_name)
 
@@ -302,4 +294,125 @@ class instance_seg_inferencing():
             plt.close('all')
             count += 1
             print('{} images done. The last one is {}'.format(count, filename))
+            
+    def quality_control_instance_seg(self):
+        dir_updated = os.path.join(self.savedir, 'updated')
+        if not os.path.isdir(dir_updated):
+            os.makedirs(dir_updated)       
+            
+        for filename in self.list_f:
+            temp       = re.search(self.pattern_datetime, filename)
+            timepart   = temp.group()
+            
+            # original image
+            img = skimage.io.imread(os.path.join(self.imagedir, filename))
+            
+            # segmentation result
+            loaded     = pkl.load(open(os.path.join(self.segmentation_dir, timepart + '.pkl'), 'rb'))
+            masks      = copy.deepcopy(loaded['masks'])
+            rois       = copy.deepcopy(loaded['rois'])
+            class_ids  = copy.deepcopy(loaded['class_ids'])
+            scores     = copy.deepcopy(loaded['scores'])
+
+            intersects = []
+            num_m      = masks.shape[2]
+            mark_mask1 = dict()
+            mark_mask2 = dict()            
+
+            # type 1: find those masks overlap with other 2 masks, remove the one
+            for idx_m in range(0, num_m):
+                mask   = np.expand_dims(masks[:,:,idx_m], axis=2)
+                masks_ = np.reshape(masks > .5, (-1, masks.shape[-1])).astype(np.float32)
+                mask_  = np.reshape(mask > .5, (-1, mask.shape[-1])).astype(np.float32)
+                intersections = np.dot(masks_.T, mask_)
+                idx1 = np.where(intersections > 50)[0]
+                idx1 = np.delete(idx1, np.where(idx1 == idx_m))
+
+                if len(idx1) > 0:
+                    mark_mask1[idx_m] = idx1         
+#                     print('File {} type 1: {} \n'.format(os.path.splitext(filename)[0], mark_mask1))
+
+            lens = np.array([len(mark_mask1[k]) for k in mark_mask1])
+            idxs = np.where(lens>=2)[0] # find ones overlap more than one other masks
+            keys = list(mark_mask1.keys())
+            if len(idxs) == 1: # if there exists one that overlaps more than one mask
+                print('File {} type 1: {} \n'.format(os.path.splitext(filename)[0], mark_mask1))
+                for idx in idxs:
+                    key = keys[idx]
+                    matched_idx = mark_mask1[key]
+                    if set(matched_idx).issubset(set(keys)):
+                        masks     = np.delete(masks, key, axis = 2)
+                        rois      = np.delete(rois, key, axis = 0)
+                        class_ids = np.delete(class_ids, key, axis = 0)
+                        scores    = np.delete(scores, key, axis = 0)                        
+            elif len(idxs) > 1:
+                pdb.set_trace()
+            else:
+                print('File {} type 1: {}'.format(os.path.splitext(filename)[0], mark_mask1))
+
+            # type 2
+            num_m = masks.shape[2]
+            for idx_m in range(0, num_m):
+                mask   = np.expand_dims(masks[:,:,idx_m], axis = 2)
+                masks_ = np.reshape(masks > .5, (-1, masks.shape[-1])).astype(np.float32)
+                mask_  = np.reshape(mask > .5, (-1, mask.shape[-1])).astype(np.float32)
+                intersections = np.dot(masks_.T, mask_)
+                unions = np.expand_dims(np.sum(masks_,0) + np.sum(mask_), axis=1) - intersections
+                IOU = np.divide(intersections, unions)
+
+                idx2 = np.where(IOU>0.5)[0]
+                idx2 = np.delete(idx2, np.where(idx2 == idx_m))
+                if len(idx2) > 0:
+                    mark_mask2[idx_m] = idx2  
+            print('File {} type 2: {}.\n'.format(os.path.splitext(filename)[0], mark_mask2))
+
+            lens  = np.array([len(mark_mask2[k]) for k in mark_mask2])
+            idxs  = np.where(lens==1)[0]
+            keys  = list(mark_mask2.keys())
+            keys_ = [keys[i] for i in idxs]
+            while len(keys_) > 0:
+                key = keys_[0]
+                area0 = np.sum(masks[:,:,key])
+                keys_.remove(key)
+                matched_idx = mark_mask2[key]
+                if set(matched_idx).issubset(set(keys_)):
+                    area1 = np.sum(masks[:,:,matched_idx])
+                    keys_.remove(matched_idx)
+                    if area0 > area1:
+                        idx_remv = matched_idx
+                    else:
+                        idx_remv = key
+                    masks     = np.delete(masks, key, axis = 2)
+                    rois      = np.delete(rois, key, axis = 0)
+                    class_ids = np.delete(class_ids, key, axis = 0)
+                    scores    = np.delete(scores, key, axis = 0)
+
+            # Visualize results
+            visualize.display_instances(img, rois, masks, class_ids, 
+                self.class_names, scores, ax=_get_ax(rows=1, cols=1, size=16),show_bbox=True, show_mask=True,
+                title=timepart, colors = self.colors)
+            plt.savefig(os.path.join(dir_updated, timepart + '.png'))
+
+            loaded['masks']     = masks
+            loaded['rois']      = rois
+            loaded['class_ids'] = class_ids
+            loaded['scores']    = scores
+
+            # Save result
+            pkl.dump(loaded, open(os.path.join(dir_updated, filename), 'wb'))
+
+            # show separate visualization
+            F_DIR = os.path.join(dir_updated, 'masks', timepart)
+            if not os.path.isdir(F_DIR):
+                os.makedirs(F_DIR)
+            for idx in range(0, masks.shape[2]):
+                mask_i     = np.expand_dims(masks[:,:,idx], 2)
+                roi_i      = np.expand_dims(rois[idx], 0)
+                class_id_i = np.expand_dims(class_ids[idx],0)
+                score_i    = np.expand_dims(scores[idx],0)
+                visualize.display_instances(img, roi_i, mask_i, class_id_i, self.class_names, score_i, 
+                                            ax=_get_ax(rows=1, cols=1, size=16),show_bbox=True, show_mask=True, 
+                                            title="Leaf {}".format(idx), colors = self.colors[idx:idx+1])
+                plt.savefig(os.path.join(F_DIR, 'leaf_{}.png'.format(idx)))
+                plt.close('all')     
 
