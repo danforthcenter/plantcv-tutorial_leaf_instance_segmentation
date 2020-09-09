@@ -309,8 +309,6 @@ class img_instance_segments():
             class_ids = np.delete(class_ids, remove_idx, axis = 0)
             scores    = np.delete(scores, remove_idx, axis = 0)
             
-    #     visualize.display_instances(img, rois, masks, class_ids, class_names, scores, ax=funcs._get_ax(rows=1, cols=1, size=16),show_bbox=True, show_mask=True, title=timepart, colors = colors)
-    #     plt.savefig(os.path.join(path_updated, timepart + '.png'))
         self.segment_ = dict()
         self.segment_['masks']     = masks
         self.segment_['rois']      = rois
@@ -351,14 +349,14 @@ class img_instance_segments():
             colors = _random_colors(50)
         if print_img is True and savename is None:
             fatal_error("You must provide a savename to save the result!")
-        img = self.image
+        image = self.image
         if updated is False:
             r      = self.segment
             title1 = "Instance Segmentation" 
         elif updated is True:
             r = self.segment_
             title1   = "Updated Instance Segmentation"
-        visualize.display_instances(img, r['rois'], r['masks'], r['class_ids'], self.class_names, r['scores'], ax=_get_ax(rows=1, cols=1, size=16),show_bbox=True, show_mask=True,
+        visualize.display_instances(image, r['rois'], r['masks'], r['class_ids'], self.class_names, r['scores'], ax=_get_ax(rows=1, cols=1, size=16),show_bbox=True, show_mask=True,
                                     title=title1, colors=colors)
         if print_img is True:
             plt.savefig(savename)
@@ -376,7 +374,7 @@ class img_instance_segments():
             fatal_error("You must provide a savepath to save the result!")
         if colors is None:
             colors = _random_colors(50)
-        img = self.image
+        image = self.image
         if updated is False:
             r      = self.segment
             title_ = ''
@@ -390,12 +388,24 @@ class img_instance_segments():
             roi_i      = np.expand_dims(r['rois'][idx], 0)
             class_id_i = np.expand_dims(r['class_ids'][idx],0)
             score_i    = np.expand_dims(r['scores'][idx],0)
-            visualize.display_instances(img, roi_i, mask_i, class_id_i, self.class_names, score_i, ax=_get_ax(rows=1, cols=1, size=16),show_bbox=True, show_mask=True,
+            visualize.display_instances(image, roi_i, mask_i, class_id_i, self.class_names, score_i, ax=_get_ax(rows=1, cols=1, size=16),show_bbox=True, show_mask=True,
                                 title="{} Leaf {}".format(title_, idx), colors = colors[idx:idx+1])
             if print_img is True:
                 plt.savefig(os.path.join(savepath, 'leaf_{}.png'.format(idx)))
                 plt.close('all')
-
+                
+    def save_self(self, savename, mode='result'):
+        """
+        Inputs:
+        savename: full name to save class object path & name (pickle file)
+        mode: if mode == 'all', save the result with original image; else if mode == "result", the original image will not be saved
+        """
+        if mode == 'all':
+            pkl.dump(self, open(savename,'wb'))
+        else:
+            delattr(self, 'image') 
+            pkl.dump(self, open(savename,'wb'))
+            
 
 class instance_seg_inferencing():
     """
@@ -414,13 +424,13 @@ class instance_seg_inferencing():
         if not os.path.isdir(self.savedir):
             os.makedirs(self.savedir)
 
-        # Directory of instance segmentation 
-        self.segmentation_dir = os.path.join(self.savedir, 'segmentation')
-        if not os.path.isdir(self.segmentation_dir):
-            os.makedirs(self.segmentation_dir)
+        # Directory of instance segmentation visualization
+        self.visualization_dir = os.path.join(self.savedir, 'visualization')
+        if not os.path.isdir(self.visualization_dir):
+            os.makedirs(self.visualization_dir)
 
         # Directory of updated instance segmentation (after quality control)
-        self.updated_dir = os.path.join(self.segmentation_dir, 'updated')
+        self.updated_dir = os.path.join(self.visualization_dir, 'updated')
         if not os.path.isdir(self.updated_dir):
             os.makedirs(self.updated_dir)
 
@@ -489,7 +499,7 @@ class instance_seg_inferencing():
     def result_visualization(self, img_inst_segs, updated=False, print_img=False, savename=None):
         if print_img is True:
             if updated is False:
-                savepath = self.segmentation_dir
+                savepath = self.visualization_dir
             elif updated is True:
                 savepath = self.updated_dir
             savename1 = os.path.join(savepath, savename)
@@ -544,11 +554,12 @@ class instance_seg_inferencing():
             count += 1
             self.result_visualization(img_inst_segs, updated=False, print_img=True, savename=timepart)
             self.result_visualization(img_inst_segs, updated=True, print_img=True, savename=timepart)
+            img_inst_segs.save_self(savename=os.path.join(self.savedir, timepart+'.pkl'), mode='result')
             if count == 1:
                 print('1 image done. Which is {}\n'.format(count, filename))
             else:     
                 print('{} images done. The last one is {}\n'.format(count, filename))
         csvfile.close()
-        print('Done! \nThe results are saved here: {}. \nThe updated results are saved here: {}'.format(self.segmentation_dir, self.updated_dir))
+        print('Done! \nThe results are saved here: {}. \nThe visualization are saved here: {}.\nThe updated visualization are saved here: {}'.format(self.savedir, self.visualization_dir, self.updated_dir))
 
 
