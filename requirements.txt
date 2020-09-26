@@ -1,7 +1,7 @@
 plantcv
 opencv-python<4
 numpy==1.15.1
-tensorflow==1.13.1
+tensorflow==1.15.4
 keras==2.1.0
 git+https://github.com/matterport/Mask_RCNN.git
 scipy
