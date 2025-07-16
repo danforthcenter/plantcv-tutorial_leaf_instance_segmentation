@@ -1,9 +1,6 @@
 # plantcv-tutorial_leaf_instance_segmentation
 A repository for leaf instance segmentation tutorial.
 
-Open the notebook "doc_leaf_instance_segmentation.ipynb" and go through a detailed tutorial.
+Open the notebook "index.ipynb" and go through a detailed tutorial.
 
-Interactive tutorial option available:
-[![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/danforthcenter/plantcv-tutorial_leaf_instance_segmentation/master?filepath=doc_leaf_instance_segmentation.ipynb)
-
-If you wish to upload your own test data, use [this link](https://mybinder.org/v2/gh/danforthcenter/plantcv-tutorial_leaf_instance_segmentation/master) and open "doc_leaf_instance_segmentation.ipynb" instead.
+[![test-pr](https://github.com/danforthcenter/plantcv-tutorial-grayscale/actions/workflows/ci-tests.yml/badge.svg)](https://github.com/danforthcenter/plantcv-tutorial-grayscale/actions/workflows/ci-tests.yml)
